@@ -222,33 +222,45 @@ window.addEventListener("DOMContentLoaded", () => {
   function postData(form) {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
+
       const statusMessage = document.createElement("img");
       statusMessage.src = message.loading;
       statusMessage.style.cssText = `
       display: block;
-      margin: 0 auto;`;
+      margin: 0 auto;
+    `;
       form.insertAdjacentElement("afterend", statusMessage);
-      const request = new XMLHttpRequest();
-      request.open("POST", "server.php");
-      request.setRequestHeader("Content-type", "application/json");
+
+      // Переносим весь код обработки внутрь функции
       const formData = new FormData(form);
       const object = {};
-      formData.forEach(function (key, value) {
+      formData.forEach(function (value, key) {
+        // Исправлен порядок параметров
         object[key] = value;
       });
-      const json = JSON.stringify(object);
-      request.send(json);
-      request.addEventListener("load", () => {
-        if (request.status === 200) {
-          console.log(request.response);
-          showThanksModal(message.success);
-          form.reset();
 
+      fetch("server.php", {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify(object), // Убрали дублирование
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return response.text();
+        })
+        .then((data) => {
+          console.log(data); // Исправлено с request.response на data
+          showThanksModal(message.success);
           statusMessage.remove();
-        } else {
+        })
+        .catch(() => {
           showThanksModal(message.failure);
-        }
-      });
+        })
+        .finally(() => {
+          form.reset();
+        });
     });
   }
 
@@ -256,15 +268,18 @@ window.addEventListener("DOMContentLoaded", () => {
     const prevModalDialog = document.querySelector(".modal__dialog");
     prevModalDialog.classList.add("hide");
     openModal();
+
     const thanksModal = document.createElement("div");
     thanksModal.classList.add("modal__dialog");
     thanksModal.innerHTML = `
     <div class="modal__content">
-    <div class="modal__close" data-close>&times;</div>
-    <div class="modal__title">${message}</div>
+      <div class="modal__close" data-close>&times;</div>
+      <div class="modal__title">${message}</div>
     </div>
-    `;
+  `;
+
     document.querySelector(".modal").append(thanksModal);
+
     setTimeout(() => {
       thanksModal.remove();
       prevModalDialog.classList.add("show");
